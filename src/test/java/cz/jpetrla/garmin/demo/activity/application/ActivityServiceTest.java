@@ -4,7 +4,6 @@ import cz.jpetrla.garmin.demo.activity.api.ActivityResponse;
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
 import cz.jpetrla.garmin.demo.activity.exception.ActivityNotFoundException;
 import cz.jpetrla.garmin.demo.activity.exception.DuplicateActivityException;
-import cz.jpetrla.garmin.demo.activity.infrastructure.fit.FitActivityParser;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityEntity;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityRepository;
 import cz.jpetrla.garmin.demo.activity.mapper.ActivityMapper;

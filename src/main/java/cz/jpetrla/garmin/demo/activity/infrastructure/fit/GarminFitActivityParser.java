@@ -6,6 +6,7 @@ import com.garmin.fit.FitRuntimeException;
 import com.garmin.fit.MesgBroadcaster;
 import com.garmin.fit.SessionMesg;
 import com.garmin.fit.SessionMesgListener;
+import cz.jpetrla.garmin.demo.activity.application.FitActivityParser;
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

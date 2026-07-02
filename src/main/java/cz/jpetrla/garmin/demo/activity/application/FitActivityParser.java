@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.activity.infrastructure.fit;
+package cz.jpetrla.garmin.demo.activity.application;
 
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
 

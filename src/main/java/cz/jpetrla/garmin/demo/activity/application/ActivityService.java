@@ -2,7 +2,6 @@ package cz.jpetrla.garmin.demo.activity.application;
 
 import cz.jpetrla.garmin.demo.activity.api.ActivityResponse;
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import cz.jpetrla.garmin.demo.activity.infrastructure.fit.FitActivityParser;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityEntity;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityRepository;
 import cz.jpetrla.garmin.demo.activity.mapper.ActivityMapper;
@@ -25,7 +24,6 @@ import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class ActivityService {
 
     private final FitActivityParser fitActivityParser;
@@ -65,15 +63,12 @@ public class ActivityService {
         }
     }
 
-    private static boolean isUniqueConstraintViolation(DataIntegrityViolationException e) {
-        return e.getCause() instanceof ConstraintViolationException cve
-                && cve.getKind() == ConstraintViolationException.ConstraintKind.UNIQUE;
-    }
-
+    @Transactional(readOnly = true)
     public Page<ActivityResponse> getActivities(Pageable pageable) {
         return activityRepository.findAll(pageable).map(activityMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public ActivityResponse getActivity(Long id) {
         ActivityEntity entity = activityRepository.findById(id).orElseThrow(() -> new ActivityNotFoundException(id));
         return activityMapper.toResponse(entity);
@@ -96,5 +91,10 @@ public class ActivityService {
         if (fileName == null || !fileName.toLowerCase(Locale.ROOT).endsWith(".fit")) {
             throw new IllegalArgumentException("Only .fit files are supported.");
         }
+    }
+
+    private static boolean isUniqueConstraintViolation(DataIntegrityViolationException e) {
+        return e.getCause() instanceof ConstraintViolationException cve
+                && cve.getKind() == ConstraintViolationException.ConstraintKind.UNIQUE;
     }
 }
