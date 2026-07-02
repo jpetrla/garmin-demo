@@ -1,0 +1,16 @@
+ALTER TABLE activity
+    ADD COLUMN total_distance real,
+    ADD COLUMN total_timer_time real,
+    ADD COLUMN total_moving_time real,
+    ADD COLUMN total_elapsed_time real,
+    ADD COLUMN max_heart_rate smallint,
+    ADD COLUMN avg_power integer,
+    ADD COLUMN max_power integer,
+    ADD COLUMN left_right_balance integer,
+    ADD COLUMN avg_left_torque_effectiveness real,
+    ADD COLUMN avg_right_torque_effectiveness real,
+    ADD COLUMN avg_left_pedal_smoothness real,
+    ADD COLUMN avg_right_pedal_smoothness real,
+    ADD COLUMN normalized_power integer,
+    ADD COLUMN intensity_factor real,
+    ADD COLUMN training_stress_score real;

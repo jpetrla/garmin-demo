@@ -18,4 +18,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleUncheckedIO(UncheckedIOException ex) {
         return ResponseEntity.internalServerError().body(ex.getMessage());
     }
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<String> handleApiException(ApiException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(ex.getMessage());
+    }
 }
