@@ -8,11 +8,13 @@ import cz.jpetrla.garmin.demo.activity.infrastructure.fit.FitActivityParser;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityEntity;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityRepository;
 import cz.jpetrla.garmin.demo.activity.mapper.ActivityMapper;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -151,6 +154,48 @@ class ActivityServiceTest {
                 .hasMessage("Activity with fitId " + data.getFitId() + " already exists.");
 
         verify(activityRepository, never()).save(any());
+    }
+
+    @Test
+    void processActivity_translatesConcurrentUniqueConstraintViolationIntoDuplicateActivityException() {
+        ActivityData data = activityData();
+        ActivityEntity mappedEntity = ActivityEntity.builder().fitId(data.getFitId()).build();
+        ConstraintViolationException uniqueViolation = new ConstraintViolationException(
+                "duplicate key value violates unique constraint",
+                new SQLException("duplicate key value violates unique constraint", "23505"),
+                ConstraintViolationException.ConstraintKind.UNIQUE,
+                "uq_activity_fit_id");
+
+        when(fitActivityParser.parse(any(InputStream.class))).thenReturn(data);
+        when(activityRepository.existsByFitId(data.getFitId())).thenReturn(false);
+        when(activityMapper.toEntity(data)).thenReturn(mappedEntity);
+        when(activityRepository.save(mappedEntity))
+                .thenThrow(new DataIntegrityViolationException("constraint violated", uniqueViolation));
+
+        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
+                .isInstanceOf(DuplicateActivityException.class)
+                .hasMessage("Activity with fitId " + data.getFitId() + " already exists.");
+    }
+
+    @Test
+    void processActivity_rethrowsDataIntegrityViolationsUnrelatedToUniqueConstraint() {
+        ActivityData data = activityData();
+        ActivityEntity mappedEntity = ActivityEntity.builder().fitId(data.getFitId()).build();
+        ConstraintViolationException notNullViolation = new ConstraintViolationException(
+                "null value in column \"started_at\" violates not-null constraint",
+                new SQLException("null value in column \"started_at\" violates not-null constraint", "23502"),
+                ConstraintViolationException.ConstraintKind.NOT_NULL,
+                "started_at");
+        DataIntegrityViolationException unrelated =
+                new DataIntegrityViolationException("not null violation", notNullViolation);
+
+        when(fitActivityParser.parse(any(InputStream.class))).thenReturn(data);
+        when(activityRepository.existsByFitId(data.getFitId())).thenReturn(false);
+        when(activityMapper.toEntity(data)).thenReturn(mappedEntity);
+        when(activityRepository.save(mappedEntity)).thenThrow(unrelated);
+
+        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
+                .isSameAs(unrelated);
     }
 
     @Test
