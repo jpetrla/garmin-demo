@@ -2,30 +2,36 @@ package cz.jpetrla.garmin.demo.activity;
 
 import com.garmin.fit.Sport;
 import cz.jpetrla.garmin.demo.testsupport.FitFileFixtures;
+import cz.jpetrla.garmin.demo.testsupport.PostgresTestConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Full-stack integration test: real Spring context, real HTTP-layer (de)serialization via
- * MockMvc, real H2 (in-memory, Postgres compatibility mode) so Flyway migrations and the
- * entity mapping are exercised without requiring Docker/Testcontainers.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(PostgresTestConfiguration.class)
+@Sql(
+        statements = "TRUNCATE TABLE activity RESTART IDENTITY",
+        executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+)
 class ActivityApiIntegrationTest {
 
     @Autowired
@@ -33,14 +39,11 @@ class ActivityApiIntegrationTest {
 
     private static final Pattern LOCATION_ID_PATTERN = Pattern.compile("/api/activities/(\\d+)$");
 
-    private String uploadAndExtractId(byte[] fitBytes, String filename) throws Exception {
+    private void uploadSuccessfully(byte[] fitBytes, String filename) throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", filename, "application/octet-stream", fitBytes);
 
-        String location = mockMvc.perform(multipart("/api/activities/upload").file(file))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getHeader("Location");
-
-        return extractId(location);
+        mockMvc.perform(multipart("/api/activities/upload").file(file))
+                .andExpect(status().isCreated());
     }
 
     private static String extractId(String location) {
@@ -58,6 +61,7 @@ class ActivityApiIntegrationTest {
 
         String location = mockMvc.perform(multipart("/api/activities/upload").file(file))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern("/api/activities/\\d+")))
                 .andExpect(jsonPath("$.fitId").value(1_000_000_001L))
                 .andExpect(jsonPath("$.sport").value("RUNNING"))
                 .andExpect(jsonPath("$.heartRateAvg").value(140))
@@ -91,6 +95,21 @@ class ActivityApiIntegrationTest {
     }
 
     @Test
+    void upload_rejectsMissingFilePart() throws Exception {
+        mockMvc.perform(multipart("/api/activities/upload"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void upload_rejectsEmptyFile() throws Exception {
+        MockMultipartFile emptyFile = new MockMultipartFile(
+                "file", "activity.fit", "application/octet-stream", new byte[0]);
+
+        mockMvc.perform(multipart("/api/activities/upload").file(emptyFile))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void upload_rejectsWrongFileExtension() throws Exception {
         MockMultipartFile wrongExtension = new MockMultipartFile("file", "activity.txt", "text/plain",
                 "irrelevant".getBytes());
@@ -102,7 +121,7 @@ class ActivityApiIntegrationTest {
     @Test
     void upload_rejectsDuplicateFitId() throws Exception {
         byte[] fitBytes = FitFileFixtures.sessionFitFile(1_000_000_002L, Sport.CYCLING);
-        uploadAndExtractId(fitBytes, "activity.fit");
+        uploadSuccessfully(fitBytes, "activity.fit");
 
         MockMultipartFile duplicate = new MockMultipartFile("file", "activity-2.fit", "application/octet-stream", fitBytes);
 
