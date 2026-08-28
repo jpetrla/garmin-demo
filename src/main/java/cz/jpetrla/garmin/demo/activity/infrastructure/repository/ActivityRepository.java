@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> {
 
-    boolean existsByFitId(Long fitId);
+    boolean existsByFileHash(String fileHash);
 }

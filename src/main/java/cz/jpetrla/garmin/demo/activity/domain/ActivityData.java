@@ -8,7 +8,6 @@ import java.time.Instant;
 @Value
 @Builder
 public class ActivityData {
-    Long fitId;
     String sport;
     Short heartRateAvg;
     Float trainingEffectAerobic;

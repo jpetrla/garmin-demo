@@ -6,9 +6,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class WebCorsConfigTest {
 
@@ -26,7 +27,8 @@ class WebCorsConfigTest {
         Map<String, CorsConfiguration> configurations =
                 (Map<String, CorsConfiguration>) ReflectionTestUtils.invokeMethod(registry, "getCorsConfigurations");
 
-        assertThat(configurations.get("/api/**").getAllowedOrigins())
-                .containsExactly("http://localhost:5173", "https://app.example.com");
+        assertEquals(
+                List.of("http://localhost:5173", "https://app.example.com"),
+                configurations.get("/api/**").getAllowedOrigins());
     }
 }

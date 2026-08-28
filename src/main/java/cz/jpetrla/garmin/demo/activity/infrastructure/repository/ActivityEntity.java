@@ -25,8 +25,8 @@ public class ActivityEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "fit_id", nullable = false, unique = true)
-    private Long fitId;
+    @Column(name = "file_hash", nullable = false, unique = true, length = 64)
+    private String fileHash;
 
     @Column(name = "sport")
     private String sport;

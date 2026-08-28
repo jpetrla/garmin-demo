@@ -4,7 +4,6 @@ import java.time.Instant;
 
 public record ActivityResponse(
         Long id,
-        Long fitId,
         String sport,
         Short heartRateAvg,
         Float trainingEffectAerobic,

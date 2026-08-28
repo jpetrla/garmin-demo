@@ -3,6 +3,7 @@ package cz.jpetrla.garmin.demo.activity.api;
 import cz.jpetrla.garmin.demo.activity.application.ActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.MediaType;
@@ -31,7 +32,9 @@ public class ActivityController {
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PagedModel<ActivityResponse>> getActivities(@PageableDefault(size = 20) Pageable pageable) {
+    public ResponseEntity<PagedModel<ActivityResponse>> getActivities(
+            @PageableDefault(size = 20, sort = {"startedAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable
+    ) {
         return ResponseEntity.ok(new PagedModel<>(activityService.getActivities(pageable)));
     }
 

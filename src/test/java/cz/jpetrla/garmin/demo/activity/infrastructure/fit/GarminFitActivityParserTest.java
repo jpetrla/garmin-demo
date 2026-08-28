@@ -2,12 +2,16 @@ package cz.jpetrla.garmin.demo.activity.infrastructure.fit;
 
 import com.garmin.fit.Sport;
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
+import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
 import cz.jpetrla.garmin.demo.testsupport.FitFileFixtures;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GarminFitActivityParserTest {
 
@@ -19,21 +23,45 @@ class GarminFitActivityParserTest {
 
         ActivityData data = parser.parse(new ByteArrayInputStream(fitBytes));
 
-        assertThat(data.getFitId()).isEqualTo(1_000_000_001L);
-        assertThat(data.getSport()).isEqualTo("RUNNING");
-        assertThat(data.getStartedAt()).isNotNull();
+        assertEquals("RUNNING", data.getSport());
+        assertNotNull(data.getStartedAt());
     }
 
     @Test
-    void parse_usesOnlyFirstSessionWhenFileContainsMultipleSessions() {
+    void parse_rejectsFileWithMultipleSessions() {
         byte[] fitBytes = FitFileFixtures.multiSessionFitFile(
                 1_000_000_001L, Sport.CYCLING,
                 1_000_005_000L, Sport.RUNNING);
 
-        ActivityData data = parser.parse(new ByteArrayInputStream(fitBytes));
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> parser.parse(new ByteArrayInputStream(fitBytes)));
 
-        assertThat(data.getFitId()).isEqualTo(1_000_000_001L);
-        assertThat(data.getSport()).isEqualTo("CYCLING");
+        assertEquals("FIT files with multiple sessions are not supported.", exception.getMessage());
+    }
+
+    @Test
+    void parse_rejectsChainedFileWithMultipleSessions() {
+        byte[] fitBytes = FitFileFixtures.chainedFitFile(
+                1_000_000_001L, Sport.CYCLING,
+                1_000_005_000L, Sport.RUNNING);
+
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> parser.parse(new ByteArrayInputStream(fitBytes)));
+
+        assertEquals("FIT files with multiple sessions are not supported.", exception.getMessage());
+    }
+
+    @Test
+    void parse_rejectsCorruptFileWithSpecificException() {
+        byte[] corruptFitBytes = "this is not a fit file".getBytes();
+
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> parser.parse(new ByteArrayInputStream(corruptFitBytes)));
+
+        assertEquals("Invalid or corrupt FIT file.", exception.getMessage());
     }
 
     @Test
@@ -44,8 +72,7 @@ class GarminFitActivityParserTest {
 
         ActivityData data = parser.parse(new ByteArrayInputStream(fitBytes));
 
-        assertThat(data.getFitId()).isNull();
-        assertThat(data.getStartedAt()).isNull();
+        assertNull(data.getStartedAt());
     }
 
     @Test
@@ -55,7 +82,6 @@ class GarminFitActivityParserTest {
 
         ActivityData data = parser.parse(new ByteArrayInputStream(fitBytes));
 
-        assertThat(data.getFitId()).isNull();
-        assertThat(data.getStartedAt()).isNull();
+        assertNull(data.getStartedAt());
     }
 }

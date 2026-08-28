@@ -26,12 +26,54 @@ public final class FitFileFixtures {
         return fitFile(session(fitTimestamp, sport));
     }
 
+    public static byte[] fitFileWithoutSession(long fitTimestamp) {
+        return fitFile(new DateTime(fitTimestamp));
+    }
+
+    public static byte[] detailedSessionFitFile(long fitTimestamp, Sport sport) {
+        SessionMesg session = session(fitTimestamp, sport);
+        session.setTotalTrainingEffect(3.5f);
+        session.setTotalAnaerobicTrainingEffect(1.3f);
+        session.setTotalDistance(12_345.5f);
+        session.setTotalTimerTime(3_600.5f);
+        session.setTotalMovingTime(3_500.25f);
+        session.setTotalElapsedTime(3_700.75f);
+        session.setAvgHeartRate((short) 141);
+        session.setMaxHeartRate((short) 189);
+        session.setAvgPower(275);
+        session.setMaxPower(910);
+        session.setLeftRightBalance(52);
+        session.setAvgLeftTorqueEffectiveness(72.5f);
+        session.setAvgRightTorqueEffectiveness(73.5f);
+        session.setAvgLeftPedalSmoothness(24.5f);
+        session.setAvgRightPedalSmoothness(25.5f);
+        session.setNormalizedPower(300);
+        session.setIntensityFactor(0.875f);
+        session.setTrainingStressScore(123.5f);
+        return fitFile(session);
+    }
+
     public static byte[] multiSessionFitFile(long firstTimestamp, Sport firstSport,
                                               long secondTimestamp, Sport secondSport) {
         return fitFile(session(firstTimestamp, firstSport), session(secondTimestamp, secondSport));
     }
 
+    public static byte[] chainedFitFile(long firstTimestamp, Sport firstSport,
+                                        long secondTimestamp, Sport secondSport) {
+        byte[] first = sessionFitFile(firstTimestamp, firstSport);
+        byte[] second = sessionFitFile(secondTimestamp, secondSport);
+
+        byte[] chained = new byte[first.length + second.length];
+        System.arraycopy(first, 0, chained, 0, first.length);
+        System.arraycopy(second, 0, chained, first.length, second.length);
+        return chained;
+    }
+
     private static byte[] fitFile(SessionMesg... sessions) {
+        return fitFile(new DateTime(sessions[0].getStartTime()), sessions);
+    }
+
+    private static byte[] fitFile(DateTime createdAt, SessionMesg... sessions) {
         try {
             Path tempFile = Files.createTempFile("activity", ".fit");
             try {
@@ -42,7 +84,7 @@ public final class FitFileFixtures {
                 fileId.setManufacturer(1);
                 fileId.setProduct(1);
                 fileId.setSerialNumber(1L);
-                fileId.setTimeCreated(new DateTime(sessions[0].getStartTime()));
+                fileId.setTimeCreated(createdAt);
                 encoder.write(fileId);
 
                 for (SessionMesg session : sessions) {

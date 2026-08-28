@@ -8,14 +8,14 @@ import com.garmin.fit.SessionMesg;
 import com.garmin.fit.SessionMesgListener;
 import cz.jpetrla.garmin.demo.activity.application.FitActivityParser;
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import lombok.extern.slf4j.Slf4j;
+import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-@Slf4j
 @Component
 public class GarminFitActivityParser implements FitActivityParser {
 
@@ -23,33 +23,32 @@ public class GarminFitActivityParser implements FitActivityParser {
     public ActivityData parse(InputStream inputStream) {
         Decode decode = new Decode();
         MesgBroadcaster broadcaster = new MesgBroadcaster(decode);
+        List<SessionMesg> sessions = new ArrayList<>();
+        broadcaster.addListener((SessionMesgListener) sessions::add);
 
-        ActivityData.ActivityDataBuilder activityDataBuilder = ActivityData.builder();
-        AtomicBoolean sessionSeen = new AtomicBoolean(false);
-        broadcaster.addListener((SessionMesgListener) session -> {
-            if (sessionSeen.compareAndSet(false, true)) {
-                populateBuilder(activityDataBuilder, session);
-            } else {
-                log.warn("FIT file contains multiple sessions; only the first session is used, "
-                        + "remaining sessions are ignored.");
-            }
-        });
         try {
-            decode.read(inputStream, broadcaster);
+            // This overload continues through chained FIT files instead of stopping after the
+            // first segment, so every session reaches the validation below.
+            decode.read(inputStream, broadcaster, broadcaster);
         } catch (FitRuntimeException e) {
-            throw new IllegalArgumentException("Invalid or corrupt FIT file.", e);
+            throw new InvalidActivityFileException("Invalid or corrupt FIT file.", e);
         }
 
-        return activityDataBuilder.build();
+        if (sessions.size() > 1) {
+            throw new InvalidActivityFileException("FIT files with multiple sessions are not supported.");
+        }
+
+        ActivityData.ActivityDataBuilder builder = ActivityData.builder();
+        if (!sessions.isEmpty()) {
+            populateBuilder(builder, sessions.getFirst());
+        }
+        return builder.build();
     }
 
     private void populateBuilder(ActivityData.ActivityDataBuilder builder, SessionMesg session) {
         Optional.ofNullable(session.getStartTime())
                 .filter(GarminFitActivityParser::isAbsoluteTimestamp)
-                .ifPresent(dt -> {
-                    builder.fitId(dt.getTimestamp());
-                    builder.startedAt(dt.getInstant());
-                });
+                .ifPresent(dt -> builder.startedAt(dt.getInstant()));
         Optional.ofNullable(session.getSport()).map(Enum::name).ifPresent(builder::sport);
         Optional.ofNullable(session.getAvgHeartRate()).ifPresent(builder::heartRateAvg);
         Optional.ofNullable(session.getTotalTrainingEffect()).ifPresent(builder::trainingEffectAerobic);

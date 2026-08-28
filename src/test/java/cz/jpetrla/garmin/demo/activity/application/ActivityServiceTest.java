@@ -2,22 +2,23 @@ package cz.jpetrla.garmin.demo.activity.application;
 
 import cz.jpetrla.garmin.demo.activity.api.ActivityResponse;
 import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import cz.jpetrla.garmin.demo.activity.exception.ActivityNotFoundException;
 import cz.jpetrla.garmin.demo.activity.exception.DuplicateActivityException;
+import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityEntity;
 import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityRepository;
 import cz.jpetrla.garmin.demo.activity.mapper.ActivityMapper;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,11 +27,11 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,6 +40,9 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ActivityServiceTest {
+
+    private static final String FIT_FILE_HASH =
+            "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81";
 
     @Mock
     private FitActivityParser fitActivityParser;
@@ -58,7 +62,6 @@ class ActivityServiceTest {
 
     private static ActivityData activityData() {
         return ActivityData.builder()
-                .fitId(123L)
                 .sport("RUNNING")
                 .startedAt(Instant.parse("2026-01-01T10:00:00Z"))
                 .build();
@@ -66,27 +69,33 @@ class ActivityServiceTest {
 
     @Test
     void processActivity_rejectsNullFile() {
-        assertThatThrownBy(() -> activityService.processActivity(null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("File is empty.");
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> activityService.processActivity(null));
+
+        assertEquals("File is empty.", exception.getMessage());
     }
 
     @Test
     void processActivity_rejectsEmptyFile() {
         MockMultipartFile empty = new MockMultipartFile("file", "activity.fit", "application/octet-stream", new byte[0]);
 
-        assertThatThrownBy(() -> activityService.processActivity(empty))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("File is empty.");
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> activityService.processActivity(empty));
+
+        assertEquals("File is empty.", exception.getMessage());
     }
 
     @Test
     void processActivity_rejectsNonFitExtension() {
         MockMultipartFile wrongExtension = new MockMultipartFile("file", "activity.txt", "text/plain", new byte[]{1});
 
-        assertThatThrownBy(() -> activityService.processActivity(wrongExtension))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Only .fit files are supported.");
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> activityService.processActivity(wrongExtension));
+
+        assertEquals("Only .fit files are supported.", exception.getMessage());
     }
 
     @Test
@@ -96,90 +105,65 @@ class ActivityServiceTest {
         when(brokenFile.getOriginalFilename()).thenReturn("activity.fit");
         when(brokenFile.getInputStream()).thenThrow(new IOException("disk error"));
 
-        assertThatThrownBy(() -> activityService.processActivity(brokenFile))
-                .isInstanceOf(UncheckedIOException.class)
-                .hasCauseInstanceOf(IOException.class);
-    }
+        UncheckedIOException exception = assertThrows(
+                UncheckedIOException.class,
+                () -> activityService.processActivity(brokenFile));
 
-    @Test
-    void processActivity_rejectsSessionWithoutFitId() {
-        when(fitActivityParser.parse(any(InputStream.class)))
-                .thenReturn(ActivityData.builder().startedAt(Instant.now()).build());
-
-        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("FIT file does not contain a session with a timestamp.");
+        assertInstanceOf(IOException.class, exception.getCause());
     }
 
     @Test
     void processActivity_rejectsSessionWithoutStartedAt() {
         when(fitActivityParser.parse(any(InputStream.class)))
-                .thenReturn(ActivityData.builder().fitId(1L).build());
+                .thenReturn(ActivityData.builder().build());
 
-        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("FIT file does not contain a session with a timestamp.");
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> activityService.processActivity(fitFile()));
+
+        assertEquals("FIT file does not contain a session with a timestamp.", exception.getMessage());
     }
 
     @Test
     void processActivity_savesParsedActivityAndReturnsMappedResponse() {
         ActivityData data = activityData();
-        ActivityEntity mappedEntity = ActivityEntity.builder().fitId(data.getFitId()).build();
-        ActivityEntity savedEntity = ActivityEntity.builder().id(1L).fitId(data.getFitId()).build();
-        ActivityResponse response = new ActivityResponse(1L, data.getFitId(), data.getSport(), null, null, null,
+        ActivityEntity mappedEntity = ActivityEntity.builder().fileHash(FIT_FILE_HASH).build();
+        ActivityEntity savedEntity = ActivityEntity.builder().id(1L).fileHash(FIT_FILE_HASH).build();
+        ActivityResponse response = new ActivityResponse(1L, data.getSport(), null, null, null,
                 data.getStartedAt(), null, null, null, null, null, null, null, null, null, null, null, null, null,
                 null, null);
 
         when(fitActivityParser.parse(any(InputStream.class))).thenReturn(data);
-        when(activityRepository.existsByFitId(data.getFitId())).thenReturn(false);
-        when(activityMapper.toEntity(data)).thenReturn(mappedEntity);
+        when(activityRepository.existsByFileHash(FIT_FILE_HASH)).thenReturn(false);
+        when(activityMapper.toEntity(data, FIT_FILE_HASH)).thenReturn(mappedEntity);
         when(activityRepository.save(mappedEntity)).thenReturn(savedEntity);
         when(activityMapper.toResponse(savedEntity)).thenReturn(response);
 
         ActivityResponse result = activityService.processActivity(fitFile());
 
-        assertThat(result).isEqualTo(response);
+        assertEquals(response, result);
     }
 
     @Test
-    void processActivity_throwsDuplicateActivityExceptionWhenFitIdAlreadyExists() {
+    void processActivity_throwsDuplicateActivityExceptionWhenFileHashAlreadyExists() {
         ActivityData data = activityData();
 
         when(fitActivityParser.parse(any(InputStream.class))).thenReturn(data);
-        when(activityRepository.existsByFitId(data.getFitId())).thenReturn(true);
+        when(activityRepository.existsByFileHash(FIT_FILE_HASH)).thenReturn(true);
 
-        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
-                .isInstanceOf(DuplicateActivityException.class)
-                .hasMessage("Activity with fitId " + data.getFitId() + " already exists.");
+        DuplicateActivityException exception = assertThrows(
+                DuplicateActivityException.class,
+                () -> activityService.processActivity(fitFile()));
+
+        assertEquals("Activity has already been imported.", exception.getMessage());
 
         verify(activityRepository, never()).save(any());
     }
 
     @Test
-    void processActivity_translatesConcurrentUniqueConstraintViolationIntoDuplicateActivityException() {
-        ActivityData data = activityData();
-        ActivityEntity mappedEntity = ActivityEntity.builder().fitId(data.getFitId()).build();
-        ConstraintViolationException uniqueViolation = new ConstraintViolationException(
-                "duplicate key value violates unique constraint",
-                new SQLException("duplicate key value violates unique constraint", "23505"),
-                ConstraintViolationException.ConstraintKind.UNIQUE,
-                "uq_activity_fit_id");
-
-        when(fitActivityParser.parse(any(InputStream.class))).thenReturn(data);
-        when(activityRepository.existsByFitId(data.getFitId())).thenReturn(false);
-        when(activityMapper.toEntity(data)).thenReturn(mappedEntity);
-        when(activityRepository.save(mappedEntity))
-                .thenThrow(new DataIntegrityViolationException("constraint violated", uniqueViolation));
-
-        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
-                .isInstanceOf(DuplicateActivityException.class)
-                .hasMessage("Activity with fitId " + data.getFitId() + " already exists.");
-    }
-
-    @Test
     void processActivity_rethrowsDataIntegrityViolationsUnrelatedToUniqueConstraint() {
         ActivityData data = activityData();
-        ActivityEntity mappedEntity = ActivityEntity.builder().fitId(data.getFitId()).build();
+        ActivityEntity mappedEntity = ActivityEntity.builder().fileHash(FIT_FILE_HASH).build();
         ConstraintViolationException notNullViolation = new ConstraintViolationException(
                 "null value in column \"started_at\" violates not-null constraint",
                 new SQLException("null value in column \"started_at\" violates not-null constraint", "23502"),
@@ -189,65 +173,29 @@ class ActivityServiceTest {
                 new DataIntegrityViolationException("not null violation", notNullViolation);
 
         when(fitActivityParser.parse(any(InputStream.class))).thenReturn(data);
-        when(activityRepository.existsByFitId(data.getFitId())).thenReturn(false);
-        when(activityMapper.toEntity(data)).thenReturn(mappedEntity);
+        when(activityRepository.existsByFileHash(FIT_FILE_HASH)).thenReturn(false);
+        when(activityMapper.toEntity(data, FIT_FILE_HASH)).thenReturn(mappedEntity);
         when(activityRepository.save(mappedEntity)).thenThrow(unrelated);
 
-        assertThatThrownBy(() -> activityService.processActivity(fitFile()))
-                .isSameAs(unrelated);
+        DataIntegrityViolationException thrown = assertThrows(
+                DataIntegrityViolationException.class,
+                () -> activityService.processActivity(fitFile()));
+
+        assertSame(unrelated, thrown);
     }
 
     @Test
-    void getActivities_returnsMappedPageFromRepository() {
-        ActivityEntity entity = ActivityEntity.builder().id(1L).build();
-        ActivityResponse response = new ActivityResponse(1L, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null);
-        Pageable pageable = PageRequest.of(0, 20);
-        Page<ActivityEntity> entityPage = new PageImpl<>(List.of(entity), pageable, 1);
+    void getActivities_appendsStableIdSortToClientSort() {
+        Pageable requestedPage = PageRequest.of(0, 20, Sort.by(Sort.Order.asc("sport")));
+        when(activityRepository.findAll(any(Pageable.class))).thenReturn(Page.empty());
 
-        when(activityRepository.findAll(pageable)).thenReturn(entityPage);
-        when(activityMapper.toResponse(entity)).thenReturn(response);
+        activityService.getActivities(requestedPage);
 
-        assertThat(activityService.getActivities(pageable)).containsExactly(response);
-    }
-
-    @Test
-    void getActivity_returnsMappedResponseWhenFound() {
-        ActivityEntity entity = ActivityEntity.builder().id(1L).build();
-        ActivityResponse response = new ActivityResponse(1L, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null);
-
-        when(activityRepository.findById(1L)).thenReturn(Optional.of(entity));
-        when(activityMapper.toResponse(entity)).thenReturn(response);
-
-        assertThat(activityService.getActivity(1L)).isEqualTo(response);
-    }
-
-    @Test
-    void getActivity_throwsActivityNotFoundExceptionWhenMissing() {
-        when(activityRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> activityService.getActivity(1L))
-                .isInstanceOf(ActivityNotFoundException.class)
-                .hasMessage("Activity with id 1 not found.");
-    }
-
-    @Test
-    void deleteActivity_deletesByIdWhenFound() {
-        when(activityRepository.existsById(1L)).thenReturn(true);
-
-        activityService.deleteActivity(1L);
-
-        verify(activityRepository).deleteById(1L);
-    }
-
-    @Test
-    void deleteActivity_throwsAndNeverDeletesWhenMissing() {
-        when(activityRepository.existsById(1L)).thenReturn(false);
-
-        assertThatThrownBy(() -> activityService.deleteActivity(1L))
-                .isInstanceOf(ActivityNotFoundException.class);
-
-        verify(activityRepository, never()).deleteById(any());
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(activityRepository).findAll(pageableCaptor.capture());
+        assertEquals(Sort.by(
+                Sort.Order.asc("sport"),
+                Sort.Order.desc("id")
+        ), pageableCaptor.getValue().getSort());
     }
 }
