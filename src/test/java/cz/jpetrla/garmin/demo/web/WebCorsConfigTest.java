@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.common.configuration;
+package cz.jpetrla.garmin.demo.web;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

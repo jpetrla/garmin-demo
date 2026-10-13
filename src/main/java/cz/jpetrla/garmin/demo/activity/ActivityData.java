@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.activity.domain;
+package cz.jpetrla.garmin.demo.activity;
 
 import lombok.Builder;
 import lombok.Value;

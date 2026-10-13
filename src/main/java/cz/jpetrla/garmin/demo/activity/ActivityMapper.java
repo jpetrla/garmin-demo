@@ -1,8 +1,7 @@
-package cz.jpetrla.garmin.demo.activity.mapper;
+package cz.jpetrla.garmin.demo.activity;
 
 import cz.jpetrla.garmin.demo.activity.api.ActivityResponse;
-import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityEntity;
+import cz.jpetrla.garmin.demo.activity.persistence.ActivityEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;

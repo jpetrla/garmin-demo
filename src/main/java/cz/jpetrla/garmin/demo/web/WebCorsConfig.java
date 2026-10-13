@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.common.configuration;
+package cz.jpetrla.garmin.demo.web;
 
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;

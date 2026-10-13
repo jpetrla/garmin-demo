@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.activity.infrastructure.repository;
+package cz.jpetrla.garmin.demo.activity.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -1,6 +1,6 @@
 package cz.jpetrla.garmin.demo.activity.api;
 
-import cz.jpetrla.garmin.demo.activity.application.ActivityService;
+import cz.jpetrla.garmin.demo.activity.ActivityService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;

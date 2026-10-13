@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.activity.exception;
+package cz.jpetrla.garmin.demo.activity;
 
 public class ActivityNotFoundException extends RuntimeException {
 

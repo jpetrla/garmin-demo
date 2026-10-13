@@ -1,7 +1,7 @@
-package cz.jpetrla.garmin.demo.common.exception;
+package cz.jpetrla.garmin.demo.web;
 
+import cz.jpetrla.garmin.demo.activity.ActivityService;
 import cz.jpetrla.garmin.demo.activity.api.ActivityController;
-import cz.jpetrla.garmin.demo.activity.application.ActivityService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

@@ -1,13 +1,9 @@
-package cz.jpetrla.garmin.demo.activity.application;
+package cz.jpetrla.garmin.demo.activity;
 
 import cz.jpetrla.garmin.demo.activity.api.ActivityResponse;
-import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import cz.jpetrla.garmin.demo.activity.exception.ActivityNotFoundException;
-import cz.jpetrla.garmin.demo.activity.exception.DuplicateActivityException;
-import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
-import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityEntity;
-import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityRepository;
-import cz.jpetrla.garmin.demo.activity.mapper.ActivityMapper;
+import cz.jpetrla.garmin.demo.activity.fit.FitActivityParser;
+import cz.jpetrla.garmin.demo.activity.persistence.ActivityEntity;
+import cz.jpetrla.garmin.demo.activity.persistence.ActivityRepository;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;

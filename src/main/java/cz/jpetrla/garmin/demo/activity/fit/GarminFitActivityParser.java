@@ -1,4 +1,4 @@
-package cz.jpetrla.garmin.demo.activity.infrastructure.fit;
+package cz.jpetrla.garmin.demo.activity.fit;
 
 import com.garmin.fit.DateTime;
 import com.garmin.fit.Decode;
@@ -6,9 +6,8 @@ import com.garmin.fit.FitRuntimeException;
 import com.garmin.fit.MesgBroadcaster;
 import com.garmin.fit.SessionMesg;
 import com.garmin.fit.SessionMesgListener;
-import cz.jpetrla.garmin.demo.activity.application.FitActivityParser;
-import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
+import cz.jpetrla.garmin.demo.activity.ActivityData;
+import cz.jpetrla.garmin.demo.activity.InvalidActivityFileException;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;

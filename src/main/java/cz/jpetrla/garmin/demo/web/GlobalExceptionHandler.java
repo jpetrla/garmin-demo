@@ -1,8 +1,8 @@
-package cz.jpetrla.garmin.demo.common.exception;
+package cz.jpetrla.garmin.demo.web;
 
-import cz.jpetrla.garmin.demo.activity.exception.ActivityNotFoundException;
-import cz.jpetrla.garmin.demo.activity.exception.DuplicateActivityException;
-import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
+import cz.jpetrla.garmin.demo.activity.ActivityNotFoundException;
+import cz.jpetrla.garmin.demo.activity.DuplicateActivityException;
+import cz.jpetrla.garmin.demo.activity.InvalidActivityFileException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;

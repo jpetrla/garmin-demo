@@ -1,8 +1,8 @@
-package cz.jpetrla.garmin.demo.activity.infrastructure.fit;
+package cz.jpetrla.garmin.demo.activity.fit;
 
 import com.garmin.fit.Sport;
-import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
-import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
+import cz.jpetrla.garmin.demo.activity.ActivityData;
+import cz.jpetrla.garmin.demo.activity.InvalidActivityFileException;
 import cz.jpetrla.garmin.demo.testsupport.FitFileFixtures;
 import org.junit.jupiter.api.Test;
 

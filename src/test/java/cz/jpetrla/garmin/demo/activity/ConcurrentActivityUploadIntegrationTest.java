@@ -1,7 +1,7 @@
 package cz.jpetrla.garmin.demo.activity;
 
 import com.garmin.fit.Sport;
-import cz.jpetrla.garmin.demo.activity.infrastructure.repository.ActivityRepository;
+import cz.jpetrla.garmin.demo.activity.persistence.ActivityRepository;
 import cz.jpetrla.garmin.demo.testsupport.FitFileFixtures;
 import cz.jpetrla.garmin.demo.testsupport.PostgresTestConfiguration;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,6 @@
 package cz.jpetrla.garmin.demo.activity.api;
 
-import cz.jpetrla.garmin.demo.activity.application.ActivityService;
+import cz.jpetrla.garmin.demo.activity.ActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
