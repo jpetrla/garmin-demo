@@ -7,10 +7,14 @@ import cz.jpetrla.garmin.demo.testsupport.FitFileFixtures;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GarminFitActivityParserTest {
@@ -62,6 +66,30 @@ class GarminFitActivityParserTest {
                 () -> parser.parse(new ByteArrayInputStream(corruptFitBytes)));
 
         assertEquals("Invalid or corrupt FIT file.", exception.getMessage());
+    }
+
+    @Test
+    void parse_preservesIOExceptionFromStreamRead() throws IOException {
+        IOException readFailure = new IOException("Failed to read temporary upload file");
+        try (InputStream brokenStream = new InputStream() {
+            @Override
+            public int available() {
+                // The SDK checks availability before attempting to read a FIT segment.
+                return 1;
+            }
+
+            @Override
+            public int read() throws IOException {
+                throw readFailure;
+            }
+        }) {
+
+            UncheckedIOException exception = assertThrows(
+                    UncheckedIOException.class,
+                    () -> parser.parse(brokenStream));
+
+            assertSame(readFailure, exception.getCause());
+        }
     }
 
     @Test

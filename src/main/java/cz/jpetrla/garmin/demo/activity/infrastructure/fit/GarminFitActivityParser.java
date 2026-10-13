@@ -11,7 +11,9 @@ import cz.jpetrla.garmin.demo.activity.domain.ActivityData;
 import cz.jpetrla.garmin.demo.activity.exception.InvalidActivityFileException;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +33,10 @@ public class GarminFitActivityParser implements FitActivityParser {
             // first segment, so every session reaches the validation below.
             decode.read(inputStream, broadcaster, broadcaster);
         } catch (FitRuntimeException e) {
+            // The SDK also wraps stream I/O failures, which are not invalid user input.
+            if (e.getCause() instanceof IOException ioException) {
+                throw new UncheckedIOException("Failed to read uploaded file", ioException);
+            }
             throw new InvalidActivityFileException("Invalid or corrupt FIT file.", e);
         }
 
