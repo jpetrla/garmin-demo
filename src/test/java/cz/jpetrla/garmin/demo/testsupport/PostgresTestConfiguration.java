@@ -12,7 +12,7 @@ public class PostgresTestConfiguration {
     @ServiceConnection
     @SuppressWarnings("resource") // Spring Boot manages the container bean lifecycle.
     PostgreSQLContainer postgresContainer() {
-        return new PostgreSQLContainer("postgres:17-alpine")
+        return new PostgreSQLContainer("postgres:18-alpine")
                 .withDatabaseName("garmin_demo")
                 .withUsername("garmin")
                 .withPassword("garmin");
