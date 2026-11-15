@@ -43,36 +43,40 @@ public class GarminFitActivityParser implements FitActivityParser {
             throw new InvalidActivityFileException("FIT files with multiple sessions are not supported.");
         }
 
-        ActivityData.ActivityDataBuilder builder = ActivityData.builder();
-        if (!sessions.isEmpty()) {
-            populateBuilder(builder, sessions.getFirst());
-        }
-        return builder.build();
+        // The start time is the one value every stored activity must have, so a file without it
+        // is rejected here together with the other FIT validation rules.
+        SessionMesg session = sessions.stream()
+                .findFirst()
+                .filter(s -> s.getStartTime() != null && isAbsoluteTimestamp(s.getStartTime()))
+                .orElseThrow(() -> new InvalidActivityFileException(
+                        "FIT file does not contain a session with a timestamp."));
+
+        return toActivityData(session);
     }
 
-    private void populateBuilder(ActivityData.ActivityDataBuilder builder, SessionMesg session) {
-        Optional.ofNullable(session.getStartTime())
-                .filter(GarminFitActivityParser::isAbsoluteTimestamp)
-                .ifPresent(dt -> builder.startedAt(dt.getInstant()));
+    private ActivityData toActivityData(SessionMesg session) {
+        ActivityData.ActivityDataBuilder builder = ActivityData.builder();
+        builder.startedAt(session.getStartTime().getInstant());
         Optional.ofNullable(session.getSport()).map(Enum::name).ifPresent(builder::sport);
-        Optional.ofNullable(session.getAvgHeartRate()).ifPresent(builder::heartRateAvg);
-        Optional.ofNullable(session.getTotalTrainingEffect()).ifPresent(builder::trainingEffectAerobic);
-        Optional.ofNullable(session.getTotalAnaerobicTrainingEffect()).ifPresent(builder::trainingEffectAnaerobic);
-        Optional.ofNullable(session.getTotalDistance()).ifPresent(builder::totalDistance);
-        Optional.ofNullable(session.getTotalTimerTime()).ifPresent(builder::totalTimerTime);
-        Optional.ofNullable(session.getTotalMovingTime()).ifPresent(builder::totalMovingTime);
-        Optional.ofNullable(session.getTotalElapsedTime()).ifPresent(builder::totalElapsedTime);
-        Optional.ofNullable(session.getMaxHeartRate()).ifPresent(builder::maxHeartRate);
-        Optional.ofNullable(session.getAvgPower()).ifPresent(builder::avgPower);
-        Optional.ofNullable(session.getMaxPower()).ifPresent(builder::maxPower);
-        Optional.ofNullable(session.getLeftRightBalance()).ifPresent(builder::leftRightBalance);
-        Optional.ofNullable(session.getAvgLeftTorqueEffectiveness()).ifPresent(builder::avgLeftTorqueEffectiveness);
-        Optional.ofNullable(session.getAvgRightTorqueEffectiveness()).ifPresent(builder::avgRightTorqueEffectiveness);
-        Optional.ofNullable(session.getAvgLeftPedalSmoothness()).ifPresent(builder::avgLeftPedalSmoothness);
-        Optional.ofNullable(session.getAvgRightPedalSmoothness()).ifPresent(builder::avgRightPedalSmoothness);
-        Optional.ofNullable(session.getNormalizedPower()).ifPresent(builder::normalizedPower);
-        Optional.ofNullable(session.getIntensityFactor()).ifPresent(builder::intensityFactor);
-        Optional.ofNullable(session.getTrainingStressScore()).ifPresent(builder::trainingStressScore);
+        builder.heartRateAvg(session.getAvgHeartRate());
+        builder.trainingEffectAerobic(session.getTotalTrainingEffect());
+        builder.trainingEffectAnaerobic(session.getTotalAnaerobicTrainingEffect());
+        builder.totalDistance(session.getTotalDistance());
+        builder.totalTimerTime(session.getTotalTimerTime());
+        builder.totalMovingTime(session.getTotalMovingTime());
+        builder.totalElapsedTime(session.getTotalElapsedTime());
+        builder.maxHeartRate(session.getMaxHeartRate());
+        builder.avgPower(session.getAvgPower());
+        builder.maxPower(session.getMaxPower());
+        builder.leftRightBalance(session.getLeftRightBalance());
+        builder.avgLeftTorqueEffectiveness(session.getAvgLeftTorqueEffectiveness());
+        builder.avgRightTorqueEffectiveness(session.getAvgRightTorqueEffectiveness());
+        builder.avgLeftPedalSmoothness(session.getAvgLeftPedalSmoothness());
+        builder.avgRightPedalSmoothness(session.getAvgRightPedalSmoothness());
+        builder.normalizedPower(session.getNormalizedPower());
+        builder.intensityFactor(session.getIntensityFactor());
+        builder.trainingStressScore(session.getTrainingStressScore());
+        return builder.build();
     }
 
     // FIT reserves values below DateTime.MIN for "seconds since device power-on" (not a real

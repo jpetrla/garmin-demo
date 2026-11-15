@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.io.UncheckedIOException;
-
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -29,12 +27,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST,
                 "Unknown sort property: " + ex.getPropertyName());
-    }
-
-    @ExceptionHandler(UncheckedIOException.class)
-    public ProblemDetail handleUncheckedIO(UncheckedIOException ex) {
-        log.error("Unexpected I/O error while handling request", ex);
-        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, GENERIC_ERROR_MESSAGE);
     }
 
     @ExceptionHandler(ActivityNotFoundException.class)

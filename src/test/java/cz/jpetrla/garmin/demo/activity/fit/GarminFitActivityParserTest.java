@@ -92,24 +92,41 @@ class GarminFitActivityParserTest {
         }
     }
 
+    private static final String MISSING_TIMESTAMP_MESSAGE = "FIT file does not contain a session with a timestamp.";
+
     @Test
-    void parse_ignoresSystemTimeStartTimestamp() {
+    void parse_rejectsFileWithoutSession() {
+        byte[] fitBytes = FitFileFixtures.fitFileWithoutSession(1_000_000_001L);
+
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> parser.parse(new ByteArrayInputStream(fitBytes)));
+
+        assertEquals(MISSING_TIMESTAMP_MESSAGE, exception.getMessage());
+    }
+
+    @Test
+    void parse_rejectsSystemTimeStartTimestamp() {
         // Raw values below DateTime.MIN (0x10000000) represent "seconds since device power-on",
         // not an absolute date, per the FIT protocol.
         byte[] fitBytes = FitFileFixtures.sessionFitFile(1000L, Sport.RUNNING);
 
-        ActivityData data = parser.parse(new ByteArrayInputStream(fitBytes));
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> parser.parse(new ByteArrayInputStream(fitBytes)));
 
-        assertNull(data.getStartedAt());
+        assertEquals(MISSING_TIMESTAMP_MESSAGE, exception.getMessage());
     }
 
     @Test
-    void parse_ignoresInvalidStartTimestamp() {
+    void parse_rejectsInvalidStartTimestamp() {
         // 0xFFFFFFFF is the FIT protocol's "field not present" sentinel for uint32 values.
         byte[] fitBytes = FitFileFixtures.sessionFitFile(0xFFFFFFFFL, Sport.RUNNING);
 
-        ActivityData data = parser.parse(new ByteArrayInputStream(fitBytes));
+        InvalidActivityFileException exception = assertThrows(
+                InvalidActivityFileException.class,
+                () -> parser.parse(new ByteArrayInputStream(fitBytes)));
 
-        assertNull(data.getStartedAt());
+        assertEquals(MISSING_TIMESTAMP_MESSAGE, exception.getMessage());
     }
 }

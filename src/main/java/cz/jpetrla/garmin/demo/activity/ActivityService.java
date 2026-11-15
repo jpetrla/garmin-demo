@@ -15,11 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.UncheckedIOException;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -33,25 +31,16 @@ public class ActivityService {
     private final ActivityRepository activityRepository;
     private final ActivityMapper activityMapper;
 
-    @Transactional
+    // Intentionally not @Transactional: reading and parsing the file must not hold a DB connection,
+    // and the repository calls below each run in their own short transaction.
     public ActivityResponse processActivity(MultipartFile file) {
         validateFile(file);
 
-        ActivityData activityData;
-        MessageDigest fileDigest = sha256Digest();
-        try (InputStream hashingStream = new DigestInputStream(file.getInputStream(), fileDigest)) {
-            activityData = fitActivityParser.parse(hashingStream);
-
-            // Ensure the hash covers the whole file even if the parser stops reading early.
-            hashingStream.transferTo(OutputStream.nullOutputStream());
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to read uploaded file", e);
-        }
-        String fileHash = HexFormat.of().formatHex(fileDigest.digest());
-
-        if (activityData.getStartedAt() == null) {
-            throw new InvalidActivityFileException("FIT file does not contain a session with a timestamp.");
-        }
+        // Uploads are capped by spring.servlet.multipart.max-file-size, so holding the file in memory
+        // is cheap and lets us hash and parse the exact same bytes without stream bookkeeping.
+        byte[] content = readContent(file);
+        ActivityData activityData = fitActivityParser.parse(new ByteArrayInputStream(content));
+        String fileHash = sha256Hex(content);
 
         if (activityRepository.existsByFileHash(fileHash)) {
             throw new DuplicateActivityException();
@@ -114,9 +103,17 @@ public class ActivityService {
                 && cve.getKind() == ConstraintViolationException.ConstraintKind.UNIQUE;
     }
 
-    private static MessageDigest sha256Digest() {
+    private static byte[] readContent(MultipartFile file) {
         try {
-            return MessageDigest.getInstance("SHA-256");
+            return file.getBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read uploaded file", e);
+        }
+    }
+
+    private static String sha256Hex(byte[] content) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is not available.", e);
         }

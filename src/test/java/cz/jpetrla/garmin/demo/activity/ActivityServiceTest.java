@@ -100,25 +100,13 @@ class ActivityServiceTest {
         MultipartFile brokenFile = mock(MultipartFile.class);
         when(brokenFile.isEmpty()).thenReturn(false);
         when(brokenFile.getOriginalFilename()).thenReturn("activity.fit");
-        when(brokenFile.getInputStream()).thenThrow(new IOException("disk error"));
+        when(brokenFile.getBytes()).thenThrow(new IOException("disk error"));
 
         UncheckedIOException exception = assertThrows(
                 UncheckedIOException.class,
                 () -> activityService.processActivity(brokenFile));
 
         assertInstanceOf(IOException.class, exception.getCause());
-    }
-
-    @Test
-    void processActivity_rejectsSessionWithoutStartedAt() {
-        when(fitActivityParser.parse(any(InputStream.class)))
-                .thenReturn(ActivityData.builder().build());
-
-        InvalidActivityFileException exception = assertThrows(
-                InvalidActivityFileException.class,
-                () -> activityService.processActivity(fitFile()));
-
-        assertEquals("FIT file does not contain a session with a timestamp.", exception.getMessage());
     }
 
     @Test
